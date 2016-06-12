@@ -1,0 +1,25 @@
+.gallery {
+    max-height: 200px;
+    border-radius: 20px;
+    padding: 10px;
+    height: 200px;
+    width: auto;
+    display: inline;
+}
+.lato {
+    font-family: "Lato";
+}
+.loader {
+    max-height: 200px;
+    max-width: 200px;
+    border-radius: 20px;
+    padding: 10px;
+    height: 200px;
+    display: inline;
+}
+.register {
+    max-height: 500px;
+    border-radius: 20px;
+    padding: 10px;
+    width: auto;
+}
