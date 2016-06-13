@@ -8,6 +8,7 @@ var Drop = require('./drop.js');
 var Pagination = require("./pagination.js");
 var Header = require("./header.js");
 import {setPageAction} from '../action/actions'
+import ReactPaginate from 'react-paginate'
 var Onee = React.createClass({
     loadImages: function (page) {
         $.ajax({
@@ -38,16 +39,24 @@ var Onee = React.createClass({
     },
     componentDidMount: function () {
         if (typeof(this.props.params.id) !== 'undefined') {
-            this.props.dispatch(setPageAction(parseInt(this.props.params.id)));
+            this.props.pageChange(this.props.params.id);
+        } else {
+            this.loadImages(this.props.page);
         }
-        this.loadImages(this.props.page);
         this.maxPages();
     },
-    changePage: function (pageNum) {
-        
+    changePage: function (data) {
+        this.props.pageChange(data.selected+1);
+        this.context.router.push('/p/' + parseInt(data.selected+1));
     },
-    componentWillReceiveProps: function () {
-        this.loadImages(this.props.page);
+    componentWillReceiveProps: function (nextProps) {
+        this.loadImages(nextProps.page);
+    },
+    componentDidReceiveProps: function (nextProps) {
+        this.context.router.push('/p/' + parseInt(nextProps.page));
+    },
+    contextTypes: {
+        router: React.PropTypes.object.isRequired
     },
     render: function () {
         const {dispatch, isAuthenticated} = this.props;
@@ -55,9 +64,17 @@ var Onee = React.createClass({
             <Header />
 
             <Images data={this.state.data}/>
-            <Pagination pages={this.state.maxpage} curPage={this.props.page} cb={function(pageNum) {
-            dispatch(setPageAction(pageNum))
-            }}/>
+            <ReactPaginate previousLabel={"previous"}
+                           nextLabel={"next"}
+                           pageNum={this.state.maxpage.length}
+                           breakLabel={<span>...</span>}
+                           initialSelected={this.props.page-1}
+                           marginPagesDisplayed={2}
+                           pageRangeDisplayed={5}
+                           clickCallback={this.changePage}
+                           containerClassName={"pagination"}
+                           subContainerClassName={"pages pagination"}
+                           activeClassName={"active"} />
             <Drop />
             {this.props.children}
         </div>);
@@ -76,4 +93,11 @@ function mapStateToProps(state) {
         page
     };
 }
-export default connect(mapStateToProps)(Onee)
+function mapDispatchToProps(dispatch) {
+    return {
+        pageChange: (id) => {
+            dispatch(setPageAction(id));
+        }
+    };
+}
+export default connect(mapStateToProps, mapDispatchToProps)(Onee)

@@ -1,10 +1,10 @@
 var React = require("react");
 var ReactDOM = require("react-dom");
-var LI = require("./pagi-single.js");
+var LI = require('./pagi-single');
 var Pagination = React.createClass({
     handleClick: function (num) {
-        var cb = this.props.cb;
-        cb(num);
+        var changePage = this.props.cb;
+        changePage(parseInt(num));
     },
     render: function () {
         var pagenodes = [];
@@ -18,7 +18,7 @@ var Pagination = React.createClass({
         } else {
             maxpage = this.props.curPage + 6;
         }
-        if (this.props.curPage <= 4) {
+        if (this.props.curPage <= 5) {
             minpage = 0;
         } else {
             minpage = this.props.curPage -4;

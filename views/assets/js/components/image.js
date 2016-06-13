@@ -13,7 +13,7 @@ var imgProps = {
 };
 var Image = React.createClass({
     checkThumbnail: function () {
-        if (typeof (this.props.thumbnail) !== 'undefined' && this.props.thumbnail !== '' && this.props.thumbnail && this.props.thumbnail.length > 1) {
+        if (typeof (this.props.thumbnail) !== 'undefined' && this.props.thumbnail !== '/' && this.props.thumbnail.length > 1) {
             return this.props.thumbnail;
         } else {
             return "/i/" + this.props.url;

@@ -6,6 +6,7 @@ import Login from './Login'
 import Logout from './Logout'
 import { Link, IndexLink } from 'react-router'
 import { loginUser, logoutUser } from '../action/actions'
+import {setPageAction} from '../action/actions'
 export default class Nav extends Component{
     render () {
         const { dispatch, isAuthenticated, errorMessage } = this.props;
@@ -24,7 +25,7 @@ export default class Nav extends Component{
                 <div className="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
                     <ul className="nav navbar-nav">
                         <li>
-                            <IndexLink activeClassName="active" to="/" className="lato">Home</IndexLink>
+                            <IndexLink onClick={function(){dispatch(setPageAction(1))}}activeClassName="active" to="/" className="lato">Home</IndexLink>
                         </li>
                         <li>
                             {isAuthenticated &&

@@ -8,7 +8,12 @@ var gm = require('gm');
 var fs = require('fs');
 var async = require('async');
 var hamming = require('compute-hamming');
-var createThumb = function (single, resImage) {
+var prepImage = function (single, image, cb) {
+    createThumb(single, image, function () {
+
+    });
+};
+var createThumb = function (single, resImage, cb) {
     if (single === true) {
         if (!resImage) {
             return helper.logInfo("No Image Provided");
@@ -27,6 +32,7 @@ var createThumb = function (single, resImage) {
                             }
                         }, {multi: true}, function (err) {
                             if (err) return helper.logInfo(err);
+                            cb();
                         });
                         helper.logInfo("Finished Resizing: " + image_org.name);
                     });

@@ -40,7 +40,6 @@ var Message = React.createClass({
 var Client = React.createClass({
     render: function () {
         const { isAuthenticated} = this.props;
-        console.log(this.props);
         var channelNodes = messages.map(function (channel) {
             var messageNodes = channel.messages.map(function (message) {
                 return (
