@@ -46,8 +46,8 @@ var Onee = React.createClass({
     changePage: function (pageNum) {
         
     },
-    componentWillReceiveProps: function () {
-        this.loadImages(this.props.page);
+    componentWillReceiveProps: function (nextProps) {
+        this.loadImages(nextProps.page);
     },
     render: function () {
         const {dispatch, isAuthenticated} = this.props;
