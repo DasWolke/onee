@@ -8,6 +8,10 @@ var dd_options = {
 };
 var express = require('express');
 var connect_datadog = require('connect-datadog')(dd_options);
+var rollbar = require("rollbar");
+rollbar.init("3d3399ae1e7a48ab946ee9dcacd4148c");
+// record a generic message and send to rollbar
+rollbar.reportMessage("Hello world!");
 var logger = require("morgan");
 var app = express();
 var cors = require("cors");

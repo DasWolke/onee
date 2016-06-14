@@ -1,5 +1,7 @@
 # onee #
-
+![banner depencies](https://david-dm.org/julian2400/onee.svg)
+![banner dev-depencies](https://david-dm.org/julian2400/onee/dev-status.svg)
+![banner travis](https://api.travis-ci.org/julian2400/onee.svg)
 ## Setup ##
 #### Requirements ####
 - Graphicsmagick

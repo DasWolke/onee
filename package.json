@@ -41,6 +41,7 @@
     "react-virtualized": "^7.4.0",
     "redux": "^3.3.1",
     "redux-thunk": "^2.0.1",
+    "rollbar": "^0.6.2",
     "shortid": "^2.2.4",
     "socket.io": "^1.4.5",
     "vinyl-source-stream": "^1.1.0"
@@ -51,6 +52,10 @@
     "babelify": "^7.2.0",
     "browserify": "^13.0.0",
     "gulp": "^3.9.1",
+    "jest-cli": "^12.1.1",
+    "karma": "^0.13.22",
+    "karma-mocha": "^1.0.1",
+    "mocha": "^2.5.3",
     "vinyl-source-stream": "^1.1.0"
   }
 }

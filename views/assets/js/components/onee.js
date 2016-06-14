@@ -35,7 +35,7 @@ var Onee = React.createClass({
         })
     },
     getInitialState: function () {
-        return {data: [], url: "/api/", maxpage: 1}
+        return {data: [], url: "/api/", maxpage: [1]}
     },
     componentDidMount: function () {
         if (typeof(this.props.params.id) !== 'undefined') {
@@ -46,14 +46,14 @@ var Onee = React.createClass({
         this.maxPages();
     },
     changePage: function (data) {
-        this.props.pageChange(data.selected+1);
-        this.context.router.push('/p/' + parseInt(data.selected+1));
+        this.props.pageChange(data);
     },
     componentWillReceiveProps: function (nextProps) {
         this.loadImages(nextProps.page);
+        this.maxPages();
     },
     componentDidReceiveProps: function (nextProps) {
-        this.context.router.push('/p/' + parseInt(nextProps.page));
+        // this.context.router.push('/p/' + parseInt(nextProps.page));
     },
     contextTypes: {
         router: React.PropTypes.object.isRequired
@@ -64,17 +64,7 @@ var Onee = React.createClass({
             <Header />
 
             <Images data={this.state.data}/>
-            <ReactPaginate previousLabel={"previous"}
-                           nextLabel={"next"}
-                           pageNum={this.state.maxpage.length}
-                           breakLabel={<span>...</span>}
-                           initialSelected={this.props.page-1}
-                           marginPagesDisplayed={2}
-                           pageRangeDisplayed={5}
-                           clickCallback={this.changePage}
-                           containerClassName={"pagination"}
-                           subContainerClassName={"pages pagination"}
-                           activeClassName={"active"} />
+            <Pagination pages={this.state.maxpage} curPage={this.props.page} cb={this.changePage}/>
             <Drop />
             {this.props.children}
         </div>);

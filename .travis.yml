@@ -1,0 +1,5 @@
+before_install:
+   - sudo apt-get -qq update
+   - sudo apt-get install -y graphicsmagick imagemagick
+services:
+   - mongodb

@@ -13,16 +13,17 @@ var Pagination = React.createClass({
         }
         var maxpage = 10;
         var minpage = 1;
-        if (this.props.curPage + 6 >= pagenodes.length) {
+        if (parseInt(this.props.curPage) + 6 >= pagenodes.length) {
             maxpage = pagenodes.length;
         } else {
-            maxpage = this.props.curPage + 6;
+            maxpage = parseInt(this.props.curPage) + 6;
         }
         if (this.props.curPage <= 5) {
             minpage = 0;
         } else {
             minpage = this.props.curPage -4;
         }
+        console.log(maxpage);
             var pages = pagenodes.slice(minpage, maxpage);
 
         return (
