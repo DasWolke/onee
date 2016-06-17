@@ -3,21 +3,24 @@
  */
 console.log('Beginning INIT....');
 var dd_options = {
-    'response_code':true,
+    'response_code': true,
     'tags': ['Onee:Main Server']
 };
 var express = require('express');
 var connect_datadog = require('connect-datadog')(dd_options);
 var rollbar = require("rollbar");
 rollbar.init("3d3399ae1e7a48ab946ee9dcacd4148c");
-// record a generic message and send to rollbar
-rollbar.reportMessage("Hello world!");
 var logger = require("morgan");
 var app = express();
 var cors = require("cors");
 var bodyParser = require("body-parser");
 var mongoose = require('mongoose');
-mongoose.connect('mongodb://localhost/onee');
+mongoose.connect('mongodb://localhost/onee', function (err) {
+    if (err) {
+        helper.logInfo('DB Connection Error!');
+        return rollbar.reportMessage(err);
+    }
+});
 var helper = require('./helper/onee-helper.js');
 var imageHelper = require("./helper/image-helper.js");
 var imageModel = require('./DB/image.mongo');
@@ -36,6 +39,6 @@ app.use(require("./routes/routes.js"));
 console.log('Finished INIT...');
 imageHelper.createThumb(false);
 helper.logInfo('Der Server ist gestartet!');
-// imageHelper.checkHash(function (result) {
-//     helper.logInfo(result);
-// });
+imageHelper.checkHash(function (result) {
+    helper.logInfo(result);
+});

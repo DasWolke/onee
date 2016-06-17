@@ -4,60 +4,55 @@
 var React = require("react");
 var ReactDOM = require("react-dom");
 var Four = require("./404.js");
-var messages = [
-    {
-        "name": "#osu",
-        "messages": [
-            {
-                "sender": "test1",
-                "message": "test1msg",
-                "id": "m1"
-            }
-        ]
-    },
-    {
-        "name": "#german",
-        "messages": [
-            {
-                "sender": "test2",
-                "message": "test2msg",
-                "id": "m2"
-            }
-        ]
-    }
-];
-
-var Message = React.createClass({
-    render: function () {
-        return (
-            <div className="message">
-                <p>{this.props.from}: {this.props.children}</p>
-            </div>
-        );
-    }
-});
-
+var Image = require('./image');
 var Client = React.createClass({
-    render: function () {
-        const { isAuthenticated} = this.props;
-        var channelNodes = messages.map(function (channel) {
-            var messageNodes = channel.messages.map(function (message) {
+    loadImages: function () {
+        $.ajax({
+            url: this.state.url + "images/dup",
+            dataType: 'json',
+            success: function (data) {
+                this.setState({data: data});
+            }.bind(this),
+            error: function (xhr, status, err) {
+                console.error('#GET Error', status, err.toString());
+            }.bind(this)
+        });
+    },
+    prepList: function () {
+        var nodes;
+        return nodes = this.state.data.map(function (image) {
+            var imageDupes = image.dupes.map(function (dup) {
                 return (
-                    <Message key={message.id} from={message.sender}>{message.message}</Message>
-                );
+                    <Image key={dup} url={dup} thumbnail={"/"}/>
+                )
             });
             return (
-                <div>
-                    <h1>{channel.name}</h1>
-                    <div className="messageList">{messageNodes}</div>
-                </div>);
+                <div className="panel panel-default">
+                    <div className="panel-body">
+                        <Image key={image.id} url={image.id} thumbnail={"/" + image.thumbnail}/>
+                        <div><h1>Duplikate des Bildes</h1>
+                            {imageDupes}
+                        </div>
+                    </div>
+                </div>
+            )
         });
-
+    },
+    getInitialState: function () {
+        return {data: [], url: "/api/"}
+    },
+    componentDidMount: function () {
+        this.loadImages();
+    },
+    render: function () {
+        const {isAuthenticated} = this.props;
+        var nodes = this.prepList();
         return (
             <div>
                 {isAuthenticated &&
                 <div className="client">
-                    {channelNodes}
+                    <h1>Duplikate</h1>
+                    {nodes}
                 </div>
                 }
                 {!isAuthenticated &&

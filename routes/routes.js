@@ -22,7 +22,9 @@ var upload = multer({storage: storage});
 var app = express.Router();
 module.exports = app;
 app.post('/i/up', upload.single('file'), function (req, res, next) {
-    var mimetype = req.file.mimetype.toString(),
+    req.connection.on('close', function (err) {
+        return;
+    });
         imgPath = req.file.path.replace('upload\\', ''),
         imgLinx = imgPath.replace('upload/', ''), id = imgLinx.replace(/(.*)\.(.*?)$/, "$1"),
         image = new ImageModel({

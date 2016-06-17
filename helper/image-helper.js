@@ -9,7 +9,7 @@ var fs = require('fs');
 var async = require('async');
 var hamming = require('compute-hamming');
 var prepImage = function (single, image, cb) {
-    createThumb(single, image, function () {
+    createThumb(single, image, function (err, image) {
 
     });
 };
@@ -21,7 +21,7 @@ var createThumb = function (single, resImage, cb) {
             imageModel.findOne({id: resImage}, function (err, image) {
                 if (err) return helper.logInfo(err);
                 if (!image) {
-
+                    cb('NO Image found!', null);
                 } else {
                     resizeImage(image, function (image_org) {
                         imageModel.update({id: resImage}, {
@@ -30,9 +30,9 @@ var createThumb = function (single, resImage, cb) {
                                 height: image_org.height,
                                 thumbnail: "thumbnail/" + resImage.name
                             }
-                        }, {multi: true}, function (err) {
-                            if (err) return helper.logInfo(err);
-                            cb();
+                        }, function (err) {
+                            if (err) return cb(err);
+                            cb(null, resImage);
                         });
                         helper.logInfo("Finished Resizing: " + image_org.name);
                     });
@@ -79,71 +79,139 @@ var resizeImage = function (image, cb) {
         });
     });
 };
-var genHash = function (call) {
-    imageModel.findOne({
-        hash: {$exists: false},
-        $or: [{type: 'image/png'}, {type: 'image/jpg'}, {type: 'image/jpeg'}]
-    }, function (err, image) {
-        if (err) return helper.logInfo(err);
-        if (!image) {
-            return;
-        }
-        if (image.type != 'image/png') {
-            if (image.type != 'image/gif') {
-                gm("upload/" + image.path).write("upload/" + image.id + ".png", function (err, test) {
-                    if (err) return console.log(err);
-                    imageModel.update({id: image.id}, {
-                        $set: {
-                            type: 'image/png',
-                            path: image.id + '.png'
-                        }
-                    }, function (err) {
-                        if (err) return console.log(err);
-                        fs.unlink("upload/" + image.path, function (err) {
-                            if (err) return console.log(err);
-                            call();
+var genHash = function (useID, id, call) {
+    if (useID) {
+        imageModel.findOne({
+            id: id,
+            hash: {$exists: false},
+            $or: [{type: 'image/png'}, {type: 'image/jpg'}, {type: 'image/jpeg'}]
+        }, function (err, image) {
+            if (err) return call(err);
+            if (!image) {
+                return call('No image found');
+            }
+            if (image.type != 'image/png') {
+                if (image.type != 'image/gif') {
+                    gm("upload/" + image.path).write("upload/" + image.id + ".png", function (err, test) {
+                        if (err) return call(err);
+                        imageModel.update({id: image.id}, {
+                            $set: {
+                                type: 'image/png',
+                                path: image.id + '.png'
+                            }
+                        }, function (err) {
+                            if (err) return call(err);
+                            fs.unlink("upload/" + image.path, function (err) {
+                                if (err) return call(err);
+                                call();
+                            });
                         });
+                    });
+                }
+            } else {
+                var path = "upload/" + image.path;
+                dhash(path, function (err, hash) {
+                    if (err) {
+                        fs.stat("upload/" + image.id + ".jpg", function (err, stat) {
+                            if (err == null) {
+                                convertToPng("upload/" + image.id + ".jpg", image, function (err) {
+                                    helper.logInfo('Converted File ' + image.id);
+                                    if (err) return call(err);
+                                    call();
+                                });
+                            } else {
+                                fs.stat("upload/" + image.id + ".jpeg", function (err, stat) {
+                                    if (err == null) {
+                                        convertToPng("upload/" + image.id + ".jpg", image, function (err) {
+                                            helper.logInfo('Converted File ' + image.id);
+                                            if (err) return call(err);
+                                            call();
+                                        });
+                                    } else {
+                                        call(err);
+                                    }
+                                });
+                            }
+                        });
+                        return call(err);
+                    }
+                    imageModel.update({id: image.id}, {$set: {hash: hash}}, function (err) {
+                        if (err) {
+                            return call(err);
+                        }
+                        helper.logInfo("Updated Image " + image.path);
+                        call();
                     });
                 });
             }
-        } else {
-            var path = "upload/" + image.path;
-            dhash(path, function (err, hash) {
-                if (err) {
-                    fs.stat("upload/" + image.id + ".jpg", function (err, stat) {
-                        if (err == null) {
-                            convertToPng("upload/" + image.id + ".jpg", image, function (err) {
-                                helper.logInfo('Converted File ' + image.id);
-                                if (err) return console.log(err);
+        });
+    } else {
+        imageModel.findOne({
+            hash: {$exists: false},
+            $or: [{type: 'image/png'}, {type: 'image/jpg'}, {type: 'image/jpeg'}]
+        }, function (err, image) {
+            if (err) return call(err);
+            if (!image) {
+                return call('No image found!');
+            }
+            if (image.type != 'image/png') {
+                if (image.type != 'image/gif') {
+                    gm("upload/" + image.path).write("upload/" + image.id + ".png", function (err, test) {
+                        if (err) return call(err);
+                        imageModel.update({id: image.id}, {
+                            $set: {
+                                type: 'image/png',
+                                path: image.id + '.png'
+                            }
+                        }, function (err) {
+                            if (err) return call(err);
+                            fs.unlink("upload/" + image.path, function (err) {
+                                if (err) return call(err);
                                 call();
                             });
-                        } else {
-                            console.log(err);
-                            fs.stat("upload/" + image.id + ".jpeg", function (err, stat) {
-                                if (err == null) {
-                                    convertToPng("upload/" + image.id + ".jpg", image, function (err) {
-                                        helper.logInfo('Converted File ' + image.id);
-                                        if (err) return console.log(err);
-                                        call();
-                                    });
-                                } else {
-                                    console.log(err);
-                                }
-                            });
-                        }
+                        });
                     });
-                    return helper.logInfo(err);
                 }
-                imageModel.update({id: image.id}, {$set: {hash: hash}}, function (err) {
+            } else {
+                var path = "upload/" + image.path;
+                dhash(path, function (err, hash) {
                     if (err) {
-                        return console.log(err);
+                        fs.stat("upload/" + image.id + ".jpg", function (err, stat) {
+                            if (err == null) {
+                                convertToPng("upload/" + image.id + ".jpg", image, function (err) {
+                                    helper.logInfo('Converted File ' + image.id);
+                                    if (err) return call(err);
+                                    call();
+                                });
+                            } else {
+                                console.log(err);
+                                fs.stat("upload/" + image.id + ".jpeg", function (err, stat) {
+                                    if (err == null) {
+                                        convertToPng("upload/" + image.id + ".jpg", image, function (err) {
+                                            helper.logInfo('Converted File ' + image.id);
+                                            if (err) return call(err);
+                                            call();
+                                        });
+                                    } else {
+                                        call(err);
+                                    }
+                                });
+                            }
+                        });
+                        return helper.logInfo(err);
                     }
-                    call();
-                    helper.logInfo("Updated Image " + image.path);
+                    imageModel.update({id: image.id}, {$set: {hash: hash}}, function (err) {
+                        if (err) {
+                            return call(err);
+                        }
+                        helper.logInfo("Updated Image " + image.path);
+                        call();
+
+                    });
                 });
-            });
-        }
-    });
+            }
+        });
+    }
 };
 var convertToPng = function (path, image, cb) {
     gm(path).write("upload/" + image.id + ".png", function (err, test) {
@@ -154,16 +222,17 @@ var convertToPng = function (path, image, cb) {
                 path: image.id + '.png'
             }
         }, function (err) {
-            if (err) return console.log(err);
+            if (err) return cb(err);
             fs.unlink(path, function (err) {
                 if (err) return cb(err);
+                cb();
             });
         });
     });
 };
 var checkHash = function (cb) {
     imageModel.find({hash: {$exists: true}}, function (err, Images) {
-        if (err) return helper.logInfo(err);
+        if (err) return cb(err);
         var q = async.queue(function (Image, callback) {
             var imageTemp = [];
             var dupesTemp = [];
@@ -172,7 +241,6 @@ var checkHash = function (cb) {
             async.each(Images, function (otherImg, cb) {
                 if (Image.id != otherImg.id) {
                     if (contains.call(Image.checkedWith, otherImg.id)) {
-                        //console.log('Image ' + Image.id + ' already checked with ' + Images[x].id);
                         if (contains.call(otherImg.checkedWith, Image.id)) {
                             useBulk = false;
                         } else {
@@ -181,12 +249,8 @@ var checkHash = function (cb) {
                     } else {
                         var hash = hamming(Image.hash, otherImg.hash);
                         if (hash < 5) {
-                            // console.log("Image " + Image.id + " and Image " + otherImg.id + " seem to be not very different.");
-                            // console.log(hash);
                             dupesTemp.push(Image.id);
-                            imageModel.update({_id: otherImg._id}, {$addToSet: {dupes: Image.id}}, function (err) {
-                                if (err) return cb(err);
-                            });
+                            bulk.find({_id: otherImg._id}).update({$addToSet: {dupes: Image.id}});
                         }
                         bulk.find({_id: otherImg._id}).update({$addToSet: {checkedWith: Image.id}});
                         imageTemp.push(otherImg.id);
@@ -199,7 +263,6 @@ var checkHash = function (cb) {
                 if (err) return callback(err);
                 if (useBulk) {
                     bulk.execute(function (err) {
-                        // console.log('Finished Async Bulk!');
                         if (err) return callback(err);
                         imageModel.update({_id: Image._id}, {
                             $addToSet: {
@@ -217,10 +280,10 @@ var checkHash = function (cb) {
                     });
                 }
             });
-        }, 50);
+        }, 1);
         q.push(Images, function (err) {
             if (err) return helper.logInfo(err);
-            cb('success');
+            cb('Checked Image');
         });
     });
 };
