@@ -9,8 +9,20 @@ var fs = require('fs');
 var async = require('async');
 var hamming = require('compute-hamming');
 var prepImage = function (single, image, cb) {
+    console.log('started Prepimage');
     createThumb(single, image, function (err, image) {
-
+        if (err) {
+            console.log('Error at create Thumb!');
+            return helper.logInfo(err);
+        }
+        console.log('Finished Thumb for Image ' + image.id);
+        genHash(true, image.id, function (err) {
+            if (err) {
+                console.log('Error at create Hash');
+                return helper.logInfo(err);
+            }
+            console.log('Image ' + image.id + ' finished!');
+        });
     });
 };
 var createThumb = function (single, resImage, cb) {
@@ -18,13 +30,13 @@ var createThumb = function (single, resImage, cb) {
         if (!resImage) {
             return helper.logInfo("No Image Provided");
         } else {
-            imageModel.findOne({id: resImage}, function (err, image) {
-                if (err) return helper.logInfo(err);
+            imageModel.findOne({id: resImage.id}, function (err, image) {
+                if (err) return cb(err);
                 if (!image) {
                     cb('NO Image found!', null);
                 } else {
                     resizeImage(image, function (image_org) {
-                        imageModel.update({id: resImage}, {
+                        imageModel.update({id: resImage.id}, {
                             $set: {
                                 width: image_org.width,
                                 height: image_org.height,
@@ -55,7 +67,7 @@ var createThumb = function (single, resImage, cb) {
                         }
                     }, {multi: true}, function (err) {
                         if (err) return helper.logInfo(err);
-                        helper.logInfo('finished Image ' + image_org.name);
+                        helper.logInfo('finished Image ' + image_org.id);
                     });
                 });
                 i++;
@@ -336,4 +348,10 @@ var copyFile = function (source, target, cb) {
         }
     }
 };
-module.exports = {resizeImage: resizeImage, createThumb: createThumb, genHash: genHash, checkHash: checkHash};
+module.exports = {
+    resizeImage: resizeImage,
+    createThumb: createThumb,
+    genHash: genHash,
+    checkHash: checkHash,
+    prepImage: prepImage
+};

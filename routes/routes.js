@@ -25,7 +25,7 @@ app.post('/i/up', upload.single('file'), function (req, res, next) {
     req.connection.on('close', function (err) {
         return;
     });
-        imgPath = req.file.path.replace('upload\\', ''),
+    var imgPath = req.file.path.replace('upload\\', ''),
         imgLinx = imgPath.replace('upload/', ''), id = imgLinx.replace(/(.*)\.(.*?)$/, "$1"),
         image = new ImageModel({
             id: id,
@@ -38,18 +38,18 @@ app.post('/i/up', upload.single('file'), function (req, res, next) {
             checkedWith: [],
             dupes: []
         });
-    if (mimetype === 'image/jpeg') {
+    if (image.type === 'image/jpeg') {
         image.save();
         res.status(200).send(id);
-        imageHelper.createThumb(true, id);
-    } else if (mimetype === 'image/png') {
+        imageHelper.prepImage(true, image);
+    } else if (image.type === 'image/png') {
         image.save();
         res.status(200).send(id);
-        imageHelper.createThumb(true, id);
-    } else if (mimetype === 'image/gif') {
+        imageHelper.prepImage(true, image);
+    } else if (image.type === 'image/gif') {
         image.save();
         res.status(200).send(id);
-        imageHelper.createThumb(true, id);
+        imageHelper.prepImage(true, image);
     } else {
         res.status(400).send('This Filetype is not allowed!');
         fs.unlink(req.file.path, function (err) {

@@ -2,6 +2,7 @@
 ![banner depencies](https://david-dm.org/julian2400/onee.svg)
 ![banner dev-depencies](https://david-dm.org/julian2400/onee/dev-status.svg)
 ![banner travis](https://api.travis-ci.org/julian2400/onee.svg)
+[![Code Climate](https://codeclimate.com/github/julian2400/onee/badges/gpa.svg)](https://codeclimate.com/github/julian2400/onee)
 ## Setup ##
 #### Requirements ####
 - Graphicsmagick
@@ -25,4 +26,4 @@ to this:
 #### UI Changes ####
 The Ui is build with React and Redux for State,
 after Changes to it the bundle.js has to be recreated,
-to do that type gulp bundle in the project root or use gulp and let the filewatcher do its thing
+to do that type ``gulp bundle`` in the project root or use gulp and let the filewatcher do its thing

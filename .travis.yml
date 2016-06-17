@@ -10,8 +10,6 @@ node_js:
      - "6"
      - "6.1"
      - "5.11"
-     - "0.6"
-     - "iojs"
 addons:
     code_climate:
      repo_token: 36b731cc971f73c59fd9da3fc753da05168d5ed4c318d335338a901ca8011feb
