@@ -39,11 +39,5 @@ app.use(require("./routes/routes.js"));
 console.log('Finished INIT...');
 imageHelper.createThumb(false);
 helper.logInfo('Der Server ist gestartet!');
-setInterval(function () {
-    imageHelper.genHash(false, null, function (err) {
-        if (err) helper.logInfo(err);
-    });
-}, 1000 * 3);
-imageHelper.checkHash(function (result) {
-    helper.logInfo(result);
+imageHelper.checkHash(false, null, function (result) {
 });
