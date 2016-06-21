@@ -9,8 +9,26 @@ var fs = require('fs');
 var async = require('async');
 var hamming = require('compute-hamming');
 var prepImage = function (single, image, cb) {
-    createThumb(single, image, function () {
-
+    helper.logInfo('started Prepimage');
+    createThumb(single, image, function (err, image) {
+        if (err) {
+            helper.logInfo('Error at create Thumb!');
+            return helper.logInfo(err);
+        }
+        helper.logInfo('Finished Thumb for Image ' + image.id);
+        genHash(single, image, function (err) {
+            if (err) {
+                helper.logInfo('Error at create Hash');
+                return helper.logInfo(err);
+            }
+            checkHash(single, image, function (err) {
+                if (err) {
+                    helper.logInfo('Error at Check Hash');
+                    return helper.logInfo(err);
+                }
+                helper.logInfo('Image ' + image.id + ' finished!');
+            });
+        });
     });
 };
 var createThumb = function (single, resImage, cb) {
@@ -18,34 +36,37 @@ var createThumb = function (single, resImage, cb) {
         if (!resImage) {
             return helper.logInfo("No Image Provided");
         } else {
-            imageModel.findOne({id: resImage}, function (err, image) {
-                if (err) return helper.logInfo(err);
+            imageModel.findOne({id: resImage.id}, function (err, image) {
+                if (err) return cb(err);
                 if (!image) {
-
+                    cb('NO Image found!', null);
                 } else {
-                    resizeImage(image, function (image_org) {
-                        imageModel.update({id: resImage}, {
+                    resizeImage(image, function (err, image_org, curFile) {
+                        if (err) return cb(err);
+                        imageModel.update({id: resImage.id}, {
                             $set: {
-                                width: image_org.width,
-                                height: image_org.height,
-                                thumbnail: "thumbnail/" + resImage.name
+                                width: curFile.width,
+                                height: curFile.height,
+                                thumbnail: "thumbnail/" + resImage.path
                             }
-                        }, {multi: true}, function (err) {
-                            if (err) return helper.logInfo(err);
-                            cb();
+                        }, function (err) {
+                            if (err) return cb(err);
+                            cb(null, resImage);
                         });
-                        helper.logInfo("Finished Resizing: " + image_org.name);
+                        helper.logInfo("Finished Resizing: " + image_org.id);
                     });
                 }
             });
         }
     } else {
-        imageModel.find({$or: [{thumbnail: {$exists:false}}, {thumbnail: ''}]
+        imageModel.find({
+            $or: [{thumbnail: {$exists: false}}, {thumbnail: ''}]
         }, function (err, images) {
-            if (err) return helper.logInfo(err);
-            for (var i = 0; i < images.length; i++) {
-                var id = images[i].id;
-                resizeImage(images[i], function (image_org, image_info) {
+            var q = async.queue(function (Image, callback) {
+                if (err) return callback(err);
+                var id = Image.id;
+                resizeImage(Image, function (err, image_org, image_info) {
+                    if (err) return callback(err);
                     helper.logInfo("updated " + image_org.path);
                     imageModel.update({_id: image_org._id}, {
                         $set: {
@@ -53,97 +74,194 @@ var createThumb = function (single, resImage, cb) {
                             height: image_info.height,
                             thumbnail: "thumbnail/" + image_org.path
                         }
-                    }, {multi: true}, function (err) {
-                        if (err) return helper.logInfo(err);
-                        helper.logInfo('finished Image ' + image_org.name);
+                    }, function (err) {
+                        if (err) return callback(err);
+                        helper.logInfo('finished Image ' + image_org.id);
+                        callback();
                     });
                 });
-                i++;
-            }
-            helper.logInfo("Finished On Start Resizing");
+            }, 2);
+            q.push(images, function (err) {
+                if (err) return helper.logInfo(err);
+                helper.logInfo("Finished Resizing all Images");
+            });
         });
     }
 };
 var resizeImage = function (image, cb) {
     gm("upload/" + image.path).size(function (err, curFile) {
-        if (err) return console.log(err);
+        if (err) return cb(err, null, null);
         helper.logInfo("Got Info for " + image.id);
         var width = curFile.width;
         var height = curFile.height;
         var newHeight = 200;
-        var newWidth = Math.ceil((curFile.width / curFile.height) * newHeight);
-        copyFile("upload/" + image.path, "upload/thumbnail/" + image.path, function (err) {
-            if (err) return console.log(err);
-            gm("upload/" + image.path).resample(newWidth, newHeight);
-            cb(image, curFile);
+        gm("upload/" + image.path).resize(null, newHeight).write("upload/thumbnail/" + image.path, function (err) {
+            if (err) return cb(err, null, null);
+            cb(null, image, curFile);
         });
     });
 };
-var genHash = function (call) {
-    imageModel.findOne({
-        hash: {$exists: false},
-        $or: [{type: 'image/png'}, {type: 'image/jpg'}, {type: 'image/jpeg'}]
-    }, function (err, image) {
-        if (err) return helper.logInfo(err);
-        if (!image) {
-            return;
-        }
-        if (image.type != 'image/png') {
-            if (image.type != 'image/gif') {
-                gm("upload/" + image.path).write("upload/" + image.id + ".png", function (err, test) {
-                    if (err) return console.log(err);
-                    imageModel.update({id: image.id}, {
-                        $set: {
-                            type: 'image/png',
-                            path: image.id + '.png'
-                        }
-                    }, function (err) {
-                        if (err) return console.log(err);
-                        fs.unlink("upload/" + image.path, function (err) {
-                            if (err) return console.log(err);
-                            call();
+var genHash = function (useID, image, call) {
+    if (useID) {
+        imageModel.findOne({
+            id: image.id,
+            hash: {$exists: false},
+            $or: [{type: 'image/png'}, {type: 'image/jpg'}, {type: 'image/jpeg'}]
+        }, function (err, image) {
+            if (err) return call(err);
+            if (!image) {
+                return call('No image found');
+            }
+            if (image.type != 'image/png') {
+                if (image.type != 'image/gif') {
+                    convertToPng("upload/" + image.path, image, function (err) {
+                        if (err) return call(err);
+                        imageModel.findOne({
+                            id: image.id,
+                            hash: {$exists: false},
+                            $or: [{type: 'image/png'}, {type: 'image/jpg'}, {type: 'image/jpeg'}]
+                        }, function (err, image) {
+                            var path = "upload/" + image.path;
+                            dhash(path, function (err, hash) {
+                                if (err) {
+                                    fs.stat("upload/" + image.id + ".jpg", function (err, stat) {
+                                        if (err == null && err.code != 'ENOENT') {
+                                            convertToPng("upload/" + image.id + ".jpg", image, function (err) {
+                                                helper.logInfo('Converted File ' + image.id);
+                                                if (err) return call(err);
+                                                call();
+                                            });
+                                        } else {
+                                            fs.stat("upload/" + image.id + ".jpeg", function (err, stat) {
+                                                if (err == null && err.code != 'ENOENT') {
+                                                    convertToPng("upload/" + image.id + ".jpg", image, function (err) {
+                                                        helper.logInfo('Converted File ' + image.id);
+                                                        if (err) return call(err);
+                                                        call();
+                                                    });
+                                                } else {
+                                                    call(err);
+                                                }
+                                            });
+                                        }
+                                    });
+                                    return call(err);
+                                }
+                                imageModel.update({id: image.id}, {$set: {hash: hash}}, function (err) {
+                                    if (err) {
+                                        return call(err);
+                                    }
+                                    helper.logInfo("Updated Image " + image.path);
+                                    call();
+                                });
+                            });
                         });
+                    });
+                }
+            } else {
+                var path = "upload/" + image.path;
+                dhash(path, function (err, hash) {
+                    if (err) {
+                        fs.stat("upload/" + image.id + ".jpg", function (err, stat) {
+                            if (err == null && err.code != 'ENOENT') {
+                                convertToPng("upload/" + image.id + ".jpg", image, function (err) {
+                                    helper.logInfo('Converted File ' + image.id);
+                                    if (err) return call(err);
+                                    call();
+                                });
+                            } else {
+                                fs.stat("upload/" + image.id + ".jpeg", function (err, stat) {
+                                    if (err == null && err.code != 'ENOENT') {
+                                        convertToPng("upload/" + image.id + ".jpg", image, function (err) {
+                                            helper.logInfo('Converted File ' + image.id);
+                                            if (err) return call(err);
+                                            call();
+                                        });
+                                    } else {
+                                        call(err);
+                                    }
+                                });
+                            }
+                        });
+                        return call(err);
+                    }
+                    imageModel.update({id: image.id}, {$set: {hash: hash}}, function (err) {
+                        if (err) {
+                            return call(err);
+                        }
+                        helper.logInfo("Updated Image " + image.path);
+                        call();
                     });
                 });
             }
-        } else {
-            var path = "upload/" + image.path;
-            dhash(path, function (err, hash) {
-                if (err) {
-                    fs.stat("upload/" + image.id + ".jpg", function (err, stat) {
-                        if (err == null) {
-                            convertToPng("upload/" + image.id + ".jpg", image, function (err) {
-                                helper.logInfo('Converted File ' + image.id);
-                                if (err) return console.log(err);
+        });
+    } else {
+        imageModel.findOne({
+            hash: {$exists: false},
+            $or: [{type: 'image/png'}, {type: 'image/jpg'}, {type: 'image/jpeg'}]
+        }, function (err, image) {
+            if (err) return call(err);
+            if (!image) {
+                return call('No image found!');
+            }
+            if (image.type != 'image/png') {
+                if (image.type != 'image/gif') {
+                    gm("upload/" + image.path).write("upload/" + image.id + ".png", function (err, test) {
+                        if (err) return call(err);
+                        imageModel.update({id: image.id}, {
+                            $set: {
+                                type: 'image/png',
+                                path: image.id + '.png'
+                            }
+                        }, function (err) {
+                            if (err) return call(err);
+                            fs.unlink("upload/" + image.path, function (err) {
+                                if (err) return call(err);
                                 call();
                             });
-                        } else {
-                            console.log(err);
-                            fs.stat("upload/" + image.id + ".jpeg", function (err, stat) {
-                                if (err == null) {
-                                    convertToPng("upload/" + image.id + ".jpg", image, function (err) {
-                                        helper.logInfo('Converted File ' + image.id);
-                                        if (err) return console.log(err);
-                                        call();
-                                    });
-                                } else {
-                                    console.log(err);
-                                }
-                            });
-                        }
+                        });
                     });
-                    return helper.logInfo(err);
                 }
-                imageModel.update({id: image.id}, {$set: {hash: hash}}, function (err) {
+            } else {
+                var path = "upload/" + image.path;
+                dhash(path, function (err, hash) {
                     if (err) {
-                        return console.log(err);
+                        fs.stat("upload/" + image.id + ".jpg", function (err, stat) {
+                            if (err == null) {
+                                convertToPng("upload/" + image.id + ".jpg", image, function (err) {
+                                    helper.logInfo('Converted File ' + image.id);
+                                    if (err) return call(err);
+                                    call();
+                                });
+                            } else {
+                                helper.logInfo(err);
+                                fs.stat("upload/" + image.id + ".jpeg", function (err, stat) {
+                                    if (err == null) {
+                                        convertToPng("upload/" + image.id + ".jpg", image, function (err) {
+                                            helper.logInfo('Converted File ' + image.id);
+                                            if (err) return call(err);
+                                            call();
+                                        });
+                                    } else {
+                                        call(err);
+                                    }
+                                });
+                            }
+                        });
+                        return helper.logInfo(err);
                     }
-                    call();
-                    helper.logInfo("Updated Image " + image.path);
+                    imageModel.update({id: image.id}, {$set: {hash: hash}}, function (err) {
+                        if (err) {
+                            return call(err);
+                        }
+                        helper.logInfo("Updated Image " + image.path);
+                        call();
+
+                    });
                 });
-            });
-        }
-    });
+            }
+        });
+    }
 };
 var convertToPng = function (path, image, cb) {
     gm(path).write("upload/" + image.id + ".png", function (err, test) {
@@ -154,75 +272,132 @@ var convertToPng = function (path, image, cb) {
                 path: image.id + '.png'
             }
         }, function (err) {
-            if (err) return console.log(err);
+            if (err) return cb(err);
             fs.unlink(path, function (err) {
                 if (err) return cb(err);
+                cb();
             });
         });
     });
 };
-var checkHash = function (cb) {
-    imageModel.find({hash: {$exists: true}}, function (err, Images) {
-        if (err) return helper.logInfo(err);
-        var q = async.queue(function (Image, callback) {
-            var imageTemp = [];
-            var dupesTemp = [];
-            var bulk = imageModel.collection.initializeUnorderedBulkOp();
-            var useBulk = true;
-            async.each(Images, function (otherImg, cb) {
-                if (Image.id != otherImg.id) {
-                    if (contains.call(Image.checkedWith, otherImg.id)) {
-                        //console.log('Image ' + Image.id + ' already checked with ' + Images[x].id);
-                        if (contains.call(otherImg.checkedWith, Image.id)) {
-                            useBulk = false;
-                        } else {
-                            bulk.find({_id: otherImg._id}).update({$addToSet: {checkedWith: Image.id}});
-                        }
-                    } else {
-                        var hash = hamming(Image.hash, otherImg.hash);
-                        if (hash < 5) {
-                            // console.log("Image " + Image.id + " and Image " + otherImg.id + " seem to be not very different.");
-                            // console.log(hash);
-                            dupesTemp.push(Image.id);
-                            imageModel.update({_id: otherImg._id}, {$addToSet: {dupes: Image.id}}, function (err) {
-                                if (err) return cb(err);
-                            });
-                        }
-                        bulk.find({_id: otherImg._id}).update({$addToSet: {checkedWith: Image.id}});
-                        imageTemp.push(otherImg.id);
-                    }
-                }
-                async.setImmediate(function () {
-                    cb();
-                });
-            }, function (err) {
-                if (err) return callback(err);
-                if (useBulk) {
-                    bulk.execute(function (err) {
-                        // console.log('Finished Async Bulk!');
-                        if (err) return callback(err);
-                        imageModel.update({_id: Image._id}, {
-                            $addToSet: {
-                                checkedWith: {$each: imageTemp},
-                                dupes: {$each: dupesTemp}
+var checkHash = function (single, image, cb) {
+    if (single) {
+        var imageTemp = [];
+        var dupesTemp = [];
+        var bulk = imageModel.collection.initializeUnorderedBulkOp();
+        var useBulk = true;
+        imageModel.findOne({id: image.id}, function (err, Image) {
+            if (err) return cb(err);
+            if (!Image) return cb('No Image Found!');
+            imageModel.find({id: {$ne: image.id}, hash: {$exists: true}}, function (err, Images) {
+                async.each(Images, function (otherImg, call) {
+                    if (Image.id !== otherImg.id) {
+                        if (contains.call(Image.checkedWith, otherImg.id)) {
+                            if (contains.call(otherImg.checkedWith, Image.id)) {
+                                useBulk = false;
+                            } else {
+                                bulk.find({_id: otherImg._id}).update({$addToSet: {checkedWith: Image.id}});
                             }
-                        }, function (err, res) {
-                            if (err) return callback(err);
+                        } else {
+                            try {
+                                var hash = hamming(Image.hash, otherImg.hash);
+                            } catch (err) {
+                                helper.logInfo(Image);
+                                helper.logInfo(Image.hash);
+                                helper.logInfo(otherImg.hash);
+                                return call(err);
+                            }
+                            if (hash < 5) {
+                                dupesTemp.push(Image.id);
+                                bulk.find({_id: otherImg._id}).update({$addToSet: {dupes: Image.id}});
+                            }
+                            bulk.find({_id: otherImg._id}).update({$addToSet: {checkedWith: Image.id}});
+                            imageTemp.push(otherImg.id);
+                        }
+                    }
+                    async.setImmediate(function () {
+                        call();
+                    });
+                }, function (err) {
+                    if (err) return cb(err);
+                    if (useBulk) {
+                        bulk.execute(function (err) {
+                            if (err) return cb(err);
+                            imageModel.update({_id: Image._id}, {
+                                $addToSet: {
+                                    checkedWith: {$each: imageTemp},
+                                    dupes: {$each: dupesTemp}
+                                }
+                            }, function (err, res) {
+                                if (err) return cb(err);
+                                cb();
+                            });
+                        });
+                    } else {
+                        async.setImmediate(function () {
                             callback();
                         });
-                    });
-                } else {
-                    async.setImmediate(function () {
-                        callback();
-                    });
-                }
+                    }
+                });
             });
-        }, 50);
-        q.push(Images, function (err) {
-            if (err) return helper.logInfo(err);
-            cb('success');
         });
-    });
+    } else {
+        imageModel.find({hash: {$exists: true}}, function (err, Images) {
+            if (err) return cb(err);
+            var q = async.queue(function (Image, callback) {
+                var imageTemp = [];
+                var dupesTemp = [];
+                var bulk = imageModel.collection.initializeUnorderedBulkOp();
+                var useBulk = true;
+                async.each(Images, function (otherImg, cb) {
+                    if (Image.id != otherImg.id) {
+                        if (contains.call(Image.checkedWith, otherImg.id)) {
+                            if (contains.call(otherImg.checkedWith, Image.id)) {
+                                useBulk = false;
+                            } else {
+                                bulk.find({_id: otherImg._id}).update({$addToSet: {checkedWith: Image.id}});
+                            }
+                        } else {
+                            var hash = hamming(Image.hash, otherImg.hash);
+                            if (hash < 5) {
+                                dupesTemp.push(Image.id);
+                                bulk.find({_id: otherImg._id}).update({$addToSet: {dupes: Image.id}});
+                            }
+                            bulk.find({_id: otherImg._id}).update({$addToSet: {checkedWith: Image.id}});
+                            imageTemp.push(otherImg.id);
+                        }
+                    }
+                    async.setImmediate(function () {
+                        cb();
+                    });
+                }, function (err) {
+                    if (err) return callback(err);
+                    if (useBulk) {
+                        bulk.execute(function (err) {
+                            if (err) return callback(err);
+                            imageModel.update({_id: Image._id}, {
+                                $addToSet: {
+                                    checkedWith: {$each: imageTemp},
+                                    dupes: {$each: dupesTemp}
+                                }
+                            }, function (err, res) {
+                                if (err) return callback(err);
+                                callback();
+                            });
+                        });
+                    } else {
+                        async.setImmediate(function () {
+                            callback();
+                        });
+                    }
+                });
+            }, 1);
+            q.push(Images, function (err) {
+                if (err) return helper.logInfo(err);
+                cb('Checked Image');
+            });
+        });
+    }
 };
 var contains = function (needle) {
     // Per spec, the way to identify NaN is that it is not equal to itself
@@ -273,4 +448,10 @@ var copyFile = function (source, target, cb) {
         }
     }
 };
-module.exports = {resizeImage: resizeImage, createThumb: createThumb, genHash: genHash, checkHash: checkHash};
+module.exports = {
+    resizeImage: resizeImage,
+    createThumb: createThumb,
+    genHash: genHash,
+    checkHash: checkHash,
+    prepImage: prepImage
+};

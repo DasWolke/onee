@@ -22,8 +22,10 @@ var upload = multer({storage: storage});
 var app = express.Router();
 module.exports = app;
 app.post('/i/up', upload.single('file'), function (req, res, next) {
-    var mimetype = req.file.mimetype.toString(),
-        imgPath = req.file.path.replace('upload\\', ''),
+    req.connection.on('close', function (err) {
+        return;
+    });
+    var imgPath = req.file.path.replace('upload\\', ''),
         imgLinx = imgPath.replace('upload/', ''), id = imgLinx.replace(/(.*)\.(.*?)$/, "$1"),
         image = new ImageModel({
             id: id,
@@ -36,18 +38,21 @@ app.post('/i/up', upload.single('file'), function (req, res, next) {
             checkedWith: [],
             dupes: []
         });
-    if (mimetype === 'image/jpeg') {
-        image.save();
-        res.status(200).send(id);
-        imageHelper.createThumb(true, id);
-    } else if (mimetype === 'image/png') {
-        image.save();
-        res.status(200).send(id);
-        imageHelper.createThumb(true, id);
-    } else if (mimetype === 'image/gif') {
-        image.save();
-        res.status(200).send(id);
-        imageHelper.createThumb(true, id);
+    if (image.type === 'image/jpeg') {
+        image.save(function (err) {
+            res.status(200).send(id);
+            imageHelper.prepImage(true, image);
+        });
+    } else if (image.type === 'image/png') {
+        image.save(function (err) {
+            res.status(200).send(id);
+            imageHelper.prepImage(true, image);
+        });
+    } else if (image.type === 'image/gif') {
+        image.save(function (err) {
+            res.status(200).send(id);
+            imageHelper.prepImage(true, image);
+        });
     } else {
         res.status(400).send('This Filetype is not allowed!');
         fs.unlink(req.file.path, function (err) {
@@ -67,7 +72,7 @@ app.get('/i/:id', function (req, res) {
         };
         if (image) {
             res.sendFile(image.path, options, function (err) {
-                if (err) res.send(err);
+                if (err) console.log(err);
             });
         } else {
             ImageModel.findOne({path: req.params.id}, function (err, image) {

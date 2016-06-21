@@ -17,7 +17,12 @@ app.get('/api/maxpage', function (req, res) {
     });
 });
 app.get('/api/images/dup', function (req,res) {
-    imageModel.find({'dupes.0':{$exists:true}}, {checkedWith:0, channelPosted:0, name:0,posted:0}, function (err, Images) {
+    imageModel.find({dupes: {$exists: true, $ne: []}}, {
+        checkedWith: 0,
+        channelPosted: 0,
+        name: 0,
+        posted: 0
+    }, function (err, Images) {
         if (err) return res.send({error:-1, message:'A Internal Error has occured, check back later.'});
         res.send(Images);
     });
