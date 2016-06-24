@@ -1,7 +1,7 @@
 # onee.moe #
-![banner depencies](https://david-dm.org/julian2400/onee.svg)
-![banner dev-depencies](https://david-dm.org/julian2400/onee/dev-status.svg)
-![banner travis](https://api.travis-ci.org/julian2400/onee.svg)
+![banner depencies](https://david-dm.org/daswolke/onee.svg)
+![banner dev-depencies](https://david-dm.org/daswolke/onee/dev-status.svg)
+![banner travis](https://travis-ci.org/DasWolke/onee.svg?branch=nightly)
 [![Code Climate](https://codeclimate.com/github/julian2400/onee/badges/gpa.svg)](https://codeclimate.com/github/julian2400/onee)
 ---
 Version 0.2

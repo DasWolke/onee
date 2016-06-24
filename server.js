@@ -9,7 +9,7 @@ var dd_options = {
 var express = require('express');
 var connect_datadog = require('connect-datadog')(dd_options);
 var rollbar = require("rollbar");
-rollbar.init("3d3399ae1e7a48ab946ee9dcacd4148c");
+rollbar.init("9a246b4271a14f689f1d3b671337d826");
 var logger = require("morgan");
 var app = express();
 var cors = require("cors");
