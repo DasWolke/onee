@@ -4,7 +4,7 @@
 console.log('Beginning INIT....');
 var dd_options = {
     'response_code': true,
-    'tags': ['Onee:Main Server']
+    'tags': ['Onee:Main Server WEB']
 };
 var express = require('express');
 var connect_datadog = require('connect-datadog')(dd_options);
